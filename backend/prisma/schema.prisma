@@ -7,233 +7,272 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////
-// 👤 USUARIOS Y AUTENTICACIÓN
-//////////////////////
-
-model Usuario {
+model User {
   id        Int      @id @default(autoincrement())
   nombre    String
   email     String   @unique
   password  String
-  rol       Rol      @default(TRABAJADOR)
+  role      Role     @default(VENDEDOR)
+  estado    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum Rol {
+enum Role {
   ADMIN
   VETERINARIO
-  TRABAJADOR
+  VENDEDOR
 }
 
-//////////////////////
-// 🐄 ANIMALES
-//////////////////////
-
 model Animal {
-  id                Int       @id @default(autoincrement())
-  nombre            String
-  arete             String?   @unique
-  sexo              String
-  peso              Float?
-  fechaNacimiento   DateTime?
-  edadIngreso       Int?      // para animales comprados
-  estado            String
-  foto              String?
-
-  razaId            Int
-  categoriaId       Int
-
-  padreId           Int?
-  madreId           Int?
-
-  raza              Raza      @relation(fields: [razaId], references: [id])
-  categoria         Categoria @relation(fields: [categoriaId], references: [id])
-
-  padre             Animal?   @relation("Padre", fields: [padreId], references: [id])
-  madre             Animal?   @relation("Madre", fields: [madreId], references: [id])
-
-  hijosPadre        Animal[]  @relation("Padre")
-  hijosMadre        Animal[]  @relation("Madre")
-
-  movimientos       Movimiento[]
-  tratamientos      Tratamiento[]
-  alimentaciones    Alimentacion[]
-
-  ventasDetalle     DetalleVenta[]
-
-  createdAt         DateTime  @default(now())
+  id              Int            @id @default(autoincrement())
+  nombre          String
+  nroArete        String         @unique
+  sexo            String
+  peso            Float?
+  fechaNacimiento DateTime?
+  fechaIngreso    DateTime       @default(now())
+  estado          Boolean        @default(true)
+  categoriaId     Int
+  razaId          Int
+  padreId         Int?
+  madreId         Int?
+  createdAt       DateTime       @default(now())
+  vendido         Boolean        @default(false)
+  imagen          String?
+  origen          String?
+  edadIngresoMeses Int?
+  precioCompra    Decimal?       @db.Decimal(12, 2)
+  alimentaciones  Alimentacion[]
+  categoria       Categoria      @relation(fields: [categoriaId], references: [id])
+  madre           Animal?        @relation("Madre", fields: [madreId], references: [id])
+  hijosMadre      Animal[]       @relation("Madre")
+  padre           Animal?        @relation("Padre", fields: [padreId], references: [id])
+  hijosPadre      Animal[]       @relation("Padre")
+  raza            Raza           @relation(fields: [razaId], references: [id])
+  ventasDetalle   DetalleVenta[]
+  movimientos     Movimiento[]
+  tratamientos    Tratamiento[]
 }
 
 model Raza {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-
-  animales  Animal[]
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  estado      Boolean  @default(true)
+  animales    Animal[]
 }
 
 model Categoria {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-
-  animales  Animal[]
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  estado      Boolean  @default(true)
+  animales    Animal[]
 }
-
-//////////////////////
-// 📍 PARCELAS Y MOVIMIENTOS
-//////////////////////
 
 model Parcela {
   id          Int          @id @default(autoincrement())
   nombre      String
-  ubicacion   String?
-
+  tamano      Float?
+  estado      Boolean      @default(true)
+  imagen      String?
   movimientos Movimiento[]
 }
 
 model Movimiento {
-  id            Int       @id @default(autoincrement())
-  animalId      Int
-  parcelaId     Int
-  fechaIngreso  DateTime
-  fechaSalida   DateTime?
-
-  animal        Animal    @relation(fields: [animalId], references: [id])
-  parcela       Parcela   @relation(fields: [parcelaId], references: [id])
+  id           Int       @id @default(autoincrement())
+  fechaIngreso DateTime  @default(now())
+  fechaSalida  DateTime?
+  observacion  String?
+  animalId     Int
+  parcelaId    Int
+  createdAt    DateTime  @default(now())
+  animal       Animal    @relation(fields: [animalId], references: [id])
+  parcela      Parcela   @relation(fields: [parcelaId], references: [id])
 }
 
-//////////////////////
-// 💉 SANIDAD
-//////////////////////
-
 model Veterinario {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  telefono  String?
-
+  id           Int           @id @default(autoincrement())
+  nombre       String
+  telefono     String?
+  email        String?
+  estado       Boolean       @default(true)
   tratamientos Tratamiento[]
 }
 
 model Tratamiento {
-  id            Int        @id @default(autoincrement())
+  id            Int                     @id @default(autoincrement())
+  descripcion   String
+  tipo          String
+  fechaInicio   DateTime                @default(now())
+  fechaFin      DateTime?
+  estado        Boolean                 @default(true)
   animalId      Int
   veterinarioId Int
-  tipo          String     // preventivo o curativo
-  descripcion   String
-  fechaInicio   DateTime
-  fechaFin      DateTime?
-
-  animal        Animal     @relation(fields: [animalId], references: [id])
-  veterinario   Veterinario @relation(fields: [veterinarioId], references: [id])
-
-  diagnosticos  Diagnostico[]
+  createdAt     DateTime                @default(now())
   aplicaciones  AplicacionMedicamento[]
+  diagnosticos  Diagnostico[]
+  animal        Animal                  @relation(fields: [animalId], references: [id])
+  veterinario   Veterinario             @relation(fields: [veterinarioId], references: [id])
 }
 
 model Diagnostico {
-  id             Int         @id @default(autoincrement())
-  tratamientoId  Int
-  descripcion    String
-
-  tratamiento    Tratamiento @relation(fields: [tratamientoId], references: [id])
+  id            Int         @id @default(autoincrement())
+  descripcion   String
+  fecha         DateTime    @default(now())
+  tratamientoId Int
+  tratamiento   Tratamiento @relation(fields: [tratamientoId], references: [id])
 }
 
 model Medicamento {
-  id          Int      @id @default(autoincrement())
-  nombre      String
-  stock       Float
-  unidad      String   // ml, mg, etc.
-
-  aplicaciones AplicacionMedicamento[]
+  id               Int                     @id @default(autoincrement())
+  nombre           String
+  descripcion      String?
+  stockCantidad    Float
+  unidadMedida     String
+  fechaVencimiento DateTime?
+  precioCompra     Float?
+  estado           Boolean                 @default(true)
+  aplicaciones     AplicacionMedicamento[]
+  compras          DetalleCompra[]
+  movimientosInventario MovimientoInventario[]
 }
 
 model AplicacionMedicamento {
-  id             Int        @id @default(autoincrement())
+  id             Int         @id @default(autoincrement())
+  dosis          String
+  cantidad       Float       @default(1)
+  fecha          DateTime    @default(now())
+  fechaSiguiente DateTime?
   tratamientoId  Int
   medicamentoId  Int
-  dosis          Float
-  fecha          DateTime
-
-  tratamiento    Tratamiento @relation(fields: [tratamientoId], references: [id])
   medicamento    Medicamento @relation(fields: [medicamentoId], references: [id])
+  tratamiento    Tratamiento @relation(fields: [tratamientoId], references: [id])
 }
 
-//////////////////////
-// 🌽 ALIMENTACIÓN E INVENTARIO
-//////////////////////
-
 model Alimento {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  stock     Float
-  unidad    String   // kg
-
-  alimentaciones Alimentacion[]
+  id               Int             @id @default(autoincrement())
+  nombre           String
+  descripcion      String?
+  estado           Boolean         @default(true)
+  stockCantidad    Float
+  unidadMedida     String
+  fechaVencimiento DateTime?
+  precioCompra     Float?
+  alimentaciones   Alimentacion[]
+  compras          DetalleCompra[]
+  movimientosInventario MovimientoInventario[]
 }
 
 model Alimentacion {
-  id          Int      @id @default(autoincrement())
-  animalId    Int
-  alimentoId  Int
-  cantidad    Float
-  fecha       DateTime
-
-  animal      Animal   @relation(fields: [animalId], references: [id])
-  alimento    Alimento @relation(fields: [alimentoId], references: [id])
+  id              Int       @id @default(autoincrement())
+  animalId        Int
+  alimentoId      Int
+  cantidad        Float
+  fecha           DateTime  @default(now())
+  observacion     String?
+  estado          Boolean   @default(true)
+  fechaAnulacion  DateTime?
+  motivoAnulacion String?
+  alimento        Alimento  @relation(fields: [alimentoId], references: [id])
+  animal          Animal    @relation(fields: [animalId], references: [id])
 }
 
-//////////////////////
-// 💰 VENTAS
-//////////////////////
+model MovimientoInventario {
+  id             Int      @id @default(autoincrement())
+  tipo           String   // ENTRADA, SALIDA, REVERSION, AJUSTE
+  origen         String   // COMPRA, ALIMENTACION, SANIDAD, ANULACION_ALIMENTACION, ANULACION_TRATAMIENTO, MANUAL
+  itemTipo       String   // ALIMENTO, MEDICAMENTO
+  alimentoId     Int?
+  medicamentoId  Int?
+  cantidad       Float
+  unidadMedida   String?
+  stockPrevio    Float?
+  stockPosterior Float?
+  motivo         String?
+  referenciaId   Int?
+  referenciaTipo String?
+  usuarioId      Int?
+  fecha          DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  alimento       Alimento?    @relation(fields: [alimentoId], references: [id])
+  medicamento    Medicamento? @relation(fields: [medicamentoId], references: [id])
+}
+
+model Cliente {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  telefono  String?
+  direccion String?
+  estado    Boolean @default(true)
+  ventas    Venta[]
+}
 
 model Venta {
-  id          Int      @id @default(autoincrement())
-  fecha       DateTime @default(now())
-  cliente     String
-
-  detalles    DetalleVenta[]
+  id              Int            @id @default(autoincrement())
+  fecha           DateTime       @default(now())
+  clienteId       Int
+  total           Float
+  estado          Boolean        @default(true)
+  numeroFactura   String?
+  observacion     String?
+  fechaAnulacion  DateTime?
+  motivoAnulacion String?
+  detalles        DetalleVenta[]
+  cliente         Cliente        @relation(fields: [clienteId], references: [id])
 }
 
 model DetalleVenta {
-  id            Int     @id @default(autoincrement())
-  ventaId       Int
-  animalId      Int
-  peso          Float
-  precioUnitario Float
-  precioTotal   Float
-
-  venta         Venta   @relation(fields: [ventaId], references: [id])
-  animal        Animal  @relation(fields: [animalId], references: [id])
+  id                 Int     @id @default(autoincrement())
+  ventaId            Int
+  animalId           Int?
+  cantidad           Float
+  precio             Float
+  pesoVenta          Float?
+  precioKg           Float?
+  subtotal           Float
+  precioCompraAnimal Decimal? @db.Decimal(12, 2)
+  gananciaAnimal     Decimal? @db.Decimal(12, 2)
+  animal             Animal? @relation(fields: [animalId], references: [id])
+  venta              Venta   @relation(fields: [ventaId], references: [id])
 }
-
-//////////////////////
-// 🛒 COMPRAS
-//////////////////////
 
 model Proveedor {
   id        Int      @id @default(autoincrement())
   nombre    String
   telefono  String?
-
+  direccion String?
+  estado    Boolean  @default(true)
   compras   Compra[]
 }
 
 model Compra {
-  id          Int      @id @default(autoincrement())
-  fecha       DateTime @default(now())
-  proveedorId Int
-
-  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
-  detalles    DetalleCompra[]
+  id              Int             @id @default(autoincrement())
+  fecha           DateTime        @default(now())
+  proveedorId     Int
+  total           Float
+  estado          Boolean         @default(true)
+  numeroFactura   String?
+  observacion     String?
+  fechaAnulacion  DateTime?
+  motivoAnulacion String?
+  proveedor       Proveedor       @relation(fields: [proveedorId], references: [id])
+  detalles        DetalleCompra[]
 }
 
 model DetalleCompra {
-  id          Int     @id @default(autoincrement())
-  compraId    Int
-  descripcion String
-  cantidad    Float
-  precio      Float
-
-  compra      Compra  @relation(fields: [compraId], references: [id])
+  id            Int          @id @default(autoincrement())
+  compraId      Int
+  cantidad      Float
+  precio        Float
+  alimentoId    Int?
+  medicamentoId Int?
+  subtotal      Float
+  alimento      Alimento?    @relation(fields: [alimentoId], references: [id])
+  compra        Compra       @relation(fields: [compraId], references: [id])
+  medicamento   Medicamento? @relation(fields: [medicamentoId], references: [id])
 }
+
+

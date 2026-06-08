@@ -5,11 +5,20 @@ class RegisterUser {
     this.userRepository = userRepository;
   }
 
-  async execute({ nombre, email, password, rol }) {
+  async execute({ nombre, email, password, role }) {
+    if (!nombre || !email || !password) {
+      throw new Error('Nombre, email y contraseña son obligatorios.');
+    }
+
+    const validRoles = ['ADMIN', 'VETERINARIO', 'VENDEDOR'];
+    const assignedRole = role && validRoles.includes(role) ? role : 'VENDEDOR';
+
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Check if user exists
-    const existingUser = await this.userRepository.findByEmail(email);
+    const existingUser = await this.userRepository.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new Error(`Email ${email} ya está registrado.`);
+      throw new Error(`Email ${normalizedEmail} ya está registrado.`);
     }
 
     // Hash password
@@ -17,9 +26,9 @@ class RegisterUser {
 
     const newUser = {
       nombre,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
-      rol: rol || 'TRABAJADOR',
+      role: assignedRole,
     };
 
     return await this.userRepository.save(newUser);

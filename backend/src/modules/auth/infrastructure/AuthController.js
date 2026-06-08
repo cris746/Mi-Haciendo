@@ -12,8 +12,10 @@ class AuthController {
   async register(req, res) {
     try {
       const user = await this.registerUseCase.execute(req.body);
-      res.status(201).json(user);
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
     } catch (error) {
+      console.error('Registration error:', error);
       res.status(400).json({ error: error.message });
     }
   }
@@ -23,6 +25,7 @@ class AuthController {
       const result = await this.loginUseCase.execute(req.body);
       res.json(result);
     } catch (error) {
+      console.error('Login error:', error);
       res.status(400).json({ error: error.message });
     }
   }
@@ -30,14 +33,16 @@ class AuthController {
   // Get current user info (ME)
   async me(req, res) {
     try {
-        const user = await this.userRepository.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-        const { password, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
+      // req.user comes from authMiddleware
+      const user = await this.userRepository.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+      console.error('Me endpoint error:', error);
+      res.status(500).json({ error: error.message });
     }
   }
 }

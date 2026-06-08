@@ -1,0 +1,34 @@
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Variables de entorno (NUNCA subir al repositorio) ===
+.env
+.env.local
+.env.*.local
+
+# === Builds de producción ===
+dist/
+build/
+
+# === Prisma (generados automáticamente) ===
+backend/node_modules/.prisma/
+
+# === Sistema Operativo ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Editores ===
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# === Logs ===
+logs/
+*.log

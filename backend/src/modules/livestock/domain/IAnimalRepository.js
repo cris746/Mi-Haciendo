@@ -14,7 +14,15 @@ class IAnimalRepository {
     throw new Error('Method not implemented');
   }
 
-  async findByTag(tag) {
+  async findByArete(nroArete) {
+    throw new Error('Method not implemented');
+  }
+
+  async findGenealogy(id) {
+    throw new Error('Method not implemented');
+  }
+
+  async findDescendencia(id) {
     throw new Error('Method not implemented');
   }
 

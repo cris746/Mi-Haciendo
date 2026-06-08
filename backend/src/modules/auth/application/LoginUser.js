@@ -12,6 +12,10 @@ class LoginUser {
       throw new Error('Credenciales inválidas.');
     }
 
+    if (user.estado === false) {
+      throw new Error('Usuario inactivo. Contacte al administrador.');
+    }
+
     // 2. Check password
     const isPasswordValid = await SecurityService.comparePasswords(password, user.password);
     if (!isPasswordValid) {
@@ -22,7 +26,7 @@ class LoginUser {
     const token = SecurityService.generateToken({
       id: user.id,
       email: user.email,
-      rol: user.rol
+      role: user.role
     });
 
     // 4. Return user info and token
@@ -31,7 +35,7 @@ class LoginUser {
         id: user.id,
         nombre: user.nombre,
         email: user.email,
-        rol: user.rol
+        role: user.role
       },
       token
     };

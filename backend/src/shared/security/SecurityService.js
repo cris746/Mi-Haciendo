@@ -3,9 +3,13 @@ const jwt = require('jsonwebtoken');
 
 class SecurityService {
   constructor() {
-    this.secret = process.env.JWT_SECRET || 'mi_hacienda_secret_key_123';
-    this.expiresIn = '8h';
+    if (!process.env.JWT_SECRET) {
+      throw new Error('[SecurityService] JWT_SECRET no está definido en las variables de entorno. El servidor no puede arrancar de forma segura.');
+    }
+    this.secret = process.env.JWT_SECRET;
+    this.expiresIn = '1d';
   }
+
 
   async hashPassword(password) {
     const salt = await bcrypt.genSalt(10);

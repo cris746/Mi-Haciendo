@@ -155,12 +155,36 @@ class PrismaSanidadRepository extends ISanidadRepository {
         });
 
         if (medicamento) {
-          const stockPrevio = medicamento.stockCantidad;
-          const stockPosterior = stockPrevio + aplicacion.cantidad;
+          let stockPrevio;
+          let stockPosterior;
+          let unidadMedida = medicamento.unidadMedida;
+          let updateData = {};
+
+          const usaNuevaLogica = medicamento.contenidoPorUnidad > 0 && medicamento.stockTotalBase !== null;
+
+          if (usaNuevaLogica) {
+            stockPrevio = medicamento.stockTotalBase;
+            stockPosterior = stockPrevio + aplicacion.cantidad;
+            const nuevoStockUnidades = stockPosterior / medicamento.contenidoPorUnidad;
+            
+            updateData = {
+              stockTotalBase: stockPosterior,
+              stockCantidad: stockPosterior,
+              stockUnidades: nuevoStockUnidades
+            };
+            unidadMedida = medicamento.unidadBase || medicamento.unidadMedida;
+          } else {
+            stockPrevio = medicamento.stockCantidad;
+            stockPosterior = stockPrevio + aplicacion.cantidad;
+            
+            updateData = {
+              stockCantidad: stockPosterior
+            };
+          }
 
           await tx.medicamento.update({
             where: { id: aplicacion.medicamentoId },
-            data: { stockCantidad: stockPosterior }
+            data: updateData
           });
 
           await tx.movimientoInventario.create({
@@ -170,7 +194,7 @@ class PrismaSanidadRepository extends ISanidadRepository {
               itemTipo: 'MEDICAMENTO',
               medicamentoId: aplicacion.medicamentoId,
               cantidad: aplicacion.cantidad,
-              unidadMedida: medicamento.unidadMedida,
+              unidadMedida: unidadMedida,
               stockPrevio,
               stockPosterior,
               motivo: "Anulación de tratamiento",
@@ -258,17 +282,46 @@ class PrismaSanidadRepository extends ISanidadRepository {
         throw new Error('El medicamento está vencido y no puede ser aplicado.');
       }
 
-      if (medicamento.stockCantidad < cantidadNum) {
-        throw new Error(`Stock insuficiente. Disponible: ${medicamento.stockCantidad} ${medicamento.unidadMedida}`);
-      }
+      // 4. Determinar si usa nueva lógica y descontar stock
+      const usaNuevaLogica = medicamento.contenidoPorUnidad > 0 && medicamento.stockTotalBase !== null;
+      let stockPrevio;
+      let stockPosterior;
+      let unidadMedida = medicamento.unidadMedida;
+      let updateData = {};
+      let motivoCalculado = dosis || "Aplicación de medicamento";
 
-      // 4. Descontar stock por la cantidad real y registrar movimiento
-      const stockPrevio = medicamento.stockCantidad;
-      const stockPosterior = stockPrevio - cantidadNum;
+      if (usaNuevaLogica) {
+        if (medicamento.stockTotalBase < cantidadNum) {
+          throw new Error(`Stock insuficiente. Disponible: ${medicamento.stockTotalBase} ${medicamento.unidadBase}`);
+        }
+        
+        stockPrevio = medicamento.stockTotalBase;
+        stockPosterior = stockPrevio - cantidadNum;
+        const nuevoStockUnidades = stockPosterior / medicamento.contenidoPorUnidad;
+        
+        updateData = {
+          stockTotalBase: stockPosterior,
+          stockCantidad: stockPosterior,
+          stockUnidades: nuevoStockUnidades
+        };
+        unidadMedida = medicamento.unidadBase || medicamento.unidadMedida;
+        motivoCalculado = `Aplicación sanitaria de ${cantidadNum} ${unidadMedida} de ${medicamento.nombre} - ${medicamento.presentacion || ''}`;
+      } else {
+        if (medicamento.stockCantidad < cantidadNum) {
+          throw new Error(`Stock insuficiente. Disponible: ${medicamento.stockCantidad} ${medicamento.unidadMedida}`);
+        }
+        
+        stockPrevio = medicamento.stockCantidad;
+        stockPosterior = stockPrevio - cantidadNum;
+        
+        updateData = {
+          stockCantidad: stockPosterior
+        };
+      }
 
       await tx.medicamento.update({
         where: { id: medicamento.id },
-        data: { stockCantidad: stockPosterior }
+        data: updateData
       });
 
       // 5. Registrar aplicación
@@ -294,10 +347,10 @@ class PrismaSanidadRepository extends ISanidadRepository {
           itemTipo: 'MEDICAMENTO',
           medicamentoId: medicamento.id,
           cantidad: cantidadNum,
-          unidadMedida: medicamento.unidadMedida,
+          unidadMedida: unidadMedida,
           stockPrevio,
           stockPosterior,
-          motivo: dosis || "Aplicación de medicamento",
+          motivo: motivoCalculado,
           referenciaId: application.id,
           referenciaTipo: "AplicacionMedicamento"
         }

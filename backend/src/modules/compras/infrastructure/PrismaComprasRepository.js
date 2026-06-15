@@ -97,16 +97,42 @@ class PrismaComprasRepository extends IComprasRepository {
         }
         if (d.medicamentoId) {
           const medicamento = await tx.medicamento.findUnique({ where: { id: parseInt(d.medicamentoId) } });
+          const cantidadFisica = parseFloat(d.cantidad);
+          
+          let cantidadBase = cantidadFisica;
+          let nuevoStockUnidades = null;
+          let nuevoStockTotalBase = null;
+
+          if (medicamento.contenidoPorUnidad > 0) {
+            cantidadBase = cantidadFisica * medicamento.contenidoPorUnidad;
+            nuevoStockUnidades = (medicamento.stockUnidades || 0) + cantidadFisica;
+            nuevoStockTotalBase = (medicamento.stockTotalBase || 0) + cantidadBase;
+          }
+
           const stockPrevio = medicamento.stockCantidad;
-          const stockPosterior = stockPrevio + parseFloat(d.cantidad);
+          const stockPosterior = stockPrevio + cantidadBase;
+
+          const updateData = { 
+            stockCantidad: stockPosterior,
+            precioCompra: parseFloat(d.precio)
+          };
+
+          // Actualizar campos de presentación si existen
+          if (nuevoStockTotalBase !== null) {
+            updateData.stockTotalBase = nuevoStockTotalBase;
+            updateData.stockUnidades = nuevoStockUnidades;
+            updateData.precioCompraUnidad = parseFloat(d.precio);
+          }
 
           await tx.medicamento.update({
             where: { id: parseInt(d.medicamentoId) },
-            data: { 
-              stockCantidad: stockPosterior,
-              precioCompra: parseFloat(d.precio)
-            }
+            data: updateData
           });
+
+          let motivoText = numeroFactura ? `Compra Factura #${numeroFactura}` : "Compra de medicamento";
+          if (medicamento.contenidoPorUnidad > 0 && medicamento.unidadCompra) {
+            motivoText = `Compra de ${cantidadFisica} ${medicamento.unidadCompra}(s) - equivalente a ${cantidadBase} ${medicamento.unidadBase || medicamento.unidadMedida}${numeroFactura ? ` - Fac #${numeroFactura}` : ''}`;
+          }
 
           await tx.movimientoInventario.create({
             data: {
@@ -114,11 +140,11 @@ class PrismaComprasRepository extends IComprasRepository {
               origen: 'COMPRA',
               itemTipo: 'MEDICAMENTO',
               medicamentoId: medicamento.id,
-              cantidad: parseFloat(d.cantidad),
-              unidadMedida: medicamento.unidadMedida,
+              cantidad: cantidadBase,
+              unidadMedida: medicamento.unidadBase || medicamento.unidadMedida,
               stockPrevio,
               stockPosterior,
-              motivo: numeroFactura ? `Compra Factura #${numeroFactura}` : "Compra de medicamento",
+              motivo: motivoText,
               referenciaId: compra.id,
               referenciaTipo: "Compra"
             }
@@ -220,17 +246,36 @@ class PrismaComprasRepository extends IComprasRepository {
           const medicamento = await tx.medicamento.findUnique({ where: { id: d.medicamentoId } });
           if (!medicamento) throw new Error(`Medicamento con ID ${d.medicamentoId} no encontrado durante la reversión`);
           
-          const cantidadARevertir = parseFloat(d.cantidad);
-          if (medicamento.stockCantidad < cantidadARevertir) {
-             throw new Error(`No hay stock suficiente para revertir el medicamento '${medicamento.nombre}'. Stock actual: ${medicamento.stockCantidad}, A revertir: ${cantidadARevertir}`);
+          const cantidadFisicaARevertir = parseFloat(d.cantidad);
+          let cantidadBaseARevertir = cantidadFisicaARevertir;
+          let nuevoStockUnidades = null;
+          let nuevoStockTotalBase = null;
+
+          if (medicamento.contenidoPorUnidad > 0) {
+            cantidadBaseARevertir = cantidadFisicaARevertir * medicamento.contenidoPorUnidad;
+            nuevoStockUnidades = (medicamento.stockUnidades || 0) - cantidadFisicaARevertir;
+            nuevoStockTotalBase = (medicamento.stockTotalBase || 0) - cantidadBaseARevertir;
+          }
+
+          if (medicamento.stockCantidad < cantidadBaseARevertir) {
+             throw new Error(`No hay stock suficiente para revertir el medicamento '${medicamento.nombre}'. Stock actual: ${medicamento.stockCantidad}, A revertir: ${cantidadBaseARevertir}`);
           }
 
           const stockPrevio = medicamento.stockCantidad;
-          const stockPosterior = stockPrevio - cantidadARevertir;
+          const stockPosterior = stockPrevio - cantidadBaseARevertir;
+
+          const updateData = { stockCantidad: stockPosterior };
+          
+          if (nuevoStockTotalBase !== null) {
+            // Nota: Si el contenidoPorUnidad cambia entre la compra y la anulación, 
+            // esto podría causar desajustes porque no guardamos el histórico en la bd actual.
+            updateData.stockTotalBase = nuevoStockTotalBase;
+            updateData.stockUnidades = nuevoStockUnidades;
+          }
 
           await tx.medicamento.update({
             where: { id: d.medicamentoId },
-            data: { stockCantidad: stockPosterior }
+            data: updateData
           });
 
           await tx.movimientoInventario.create({
@@ -239,8 +284,8 @@ class PrismaComprasRepository extends IComprasRepository {
               origen: 'ANULACION_COMPRA',
               itemTipo: 'MEDICAMENTO',
               medicamentoId: d.medicamentoId,
-              cantidad: cantidadARevertir,
-              unidadMedida: medicamento.unidadMedida,
+              cantidad: cantidadBaseARevertir,
+              unidadMedida: medicamento.unidadBase || medicamento.unidadMedida,
               stockPrevio,
               stockPosterior,
               motivo: motivoAnulacion ? `Anulado: ${motivoAnulacion}` : "Anulación de compra",

@@ -631,55 +631,78 @@ const Compras = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {compraData.detalles.map((d, index) => (
-                    <div key={d.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-white relative">
-                      <div className="w-1/5">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">Tipo</label>
-                        <select className="input !py-2" value={d.tipo} onChange={e => handleDetalleChange(d.id, 'tipo', e.target.value)}>
-                          <option value="alimento">Alimento</option>
-                          <option value="medicamento">Medicamento</option>
-                        </select>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">Insumo</label>
-                        <select className="input !py-2" required value={d.itemId} onChange={e => handleDetalleChange(d.id, 'itemId', e.target.value)}>
-                          <option value="">Seleccione...</option>
-                          {d.tipo === 'alimento' 
-                            ? (alimentos.length > 0 ? alimentos.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>) : <option disabled>Sin alimentos activos</option>)
-                            : (medicamentos.length > 0 ? medicamentos.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>) : <option disabled>Sin medicamentos activos</option>)
-                          }
-                        </select>
-                      </div>
+                  {compraData.detalles.map((d, index) => {
+                    let itemObj = null;
+                    if (d.itemId) {
+                      itemObj = d.tipo === 'alimento' 
+                        ? alimentos.find(a => a.id === parseInt(d.itemId))
+                        : medicamentos.find(m => m.id === parseInt(d.itemId));
+                    }
+                    
+                    const isMedConPresentacion = d.tipo === 'medicamento' && itemObj?.contenidoPorUnidad > 0 && itemObj?.unidadCompra;
 
-                      <div className="w-24">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">Cant.</label>
-                        <input type="number" step="0.01" min="0.01" className="input !py-2" required value={d.cantidad} onChange={e => handleDetalleChange(d.id, 'cantidad', e.target.value)} />
-                      </div>
+                    return (
+                      <div key={d.id} className="flex flex-col p-3 border border-gray-200 rounded-lg bg-white relative">
+                        <div className="flex items-center gap-3">
+                          <div className="w-1/5">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Tipo</label>
+                            <select className="input !py-2" value={d.tipo} onChange={e => handleDetalleChange(d.id, 'tipo', e.target.value)}>
+                              <option value="alimento">Alimento</option>
+                              <option value="medicamento">Medicamento</option>
+                            </select>
+                          </div>
+                          
+                          <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Insumo</label>
+                            <select className="input !py-2" required value={d.itemId} onChange={e => handleDetalleChange(d.id, 'itemId', e.target.value)}>
+                              <option value="">Seleccione...</option>
+                              {d.tipo === 'alimento' 
+                                ? (alimentos.length > 0 ? alimentos.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>) : <option disabled>Sin alimentos activos</option>)
+                                : (medicamentos.length > 0 ? medicamentos.map(m => <option key={m.id} value={m.id}>{m.nombre}{m.presentacion ? ` - ${m.presentacion}` : ''}</option>) : <option disabled>Sin medicamentos activos</option>)
+                              }
+                            </select>
+                          </div>
 
-                      <div className="w-32">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">Costo Unit.</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                          <input type="number" step="0.01" min="0.01" className="input !py-2 pl-7" required value={d.precio} onChange={e => handleDetalleChange(d.id, 'precio', e.target.value)} />
+                          <div className="w-24">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Cant.</label>
+                            <input type="number" step="0.01" min="0.01" className="input !py-2" required value={d.cantidad} onChange={e => handleDetalleChange(d.id, 'cantidad', e.target.value)} />
+                          </div>
+
+                          <div className="w-32">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Costo Unit.</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <input type="number" step="0.01" min="0.01" className="input !py-2 pl-7" required value={d.precio} onChange={e => handleDetalleChange(d.id, 'precio', e.target.value)} />
+                            </div>
+                          </div>
+
+                          <div className="w-32 text-right pt-5">
+                            <p className="font-bold text-gray-800">
+                              ${ ((parseFloat(d.cantidad) || 0) * (parseFloat(d.precio) || 0)).toLocaleString() }
+                            </p>
+                          </div>
+
+                          <div className="pt-5 pl-2">
+                            {compraData.detalles.length > 1 && (
+                              <button type="button" onClick={() => handleRemoveDetalle(d.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" title="Quitar fila">
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="w-32 text-right pt-5">
-                        <p className="font-bold text-gray-800">
-                          ${ ((parseFloat(d.cantidad) || 0) * (parseFloat(d.precio) || 0)).toLocaleString() }
-                        </p>
-                      </div>
-
-                      <div className="pt-5 pl-2">
-                        {compraData.detalles.length > 1 && (
-                          <button type="button" onClick={() => handleRemoveDetalle(d.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg" title="Quitar fila">
-                            <Trash2 size={18} />
-                          </button>
+                        {isMedConPresentacion && (
+                          <div className="mt-2 text-xs text-gray-600 flex gap-6 bg-blue-50 p-2 rounded">
+                            <span><strong>Unidad de compra:</strong> {itemObj.unidadCompra}</span>
+                            {d.cantidad > 0 && (
+                              <span className="text-blue-700 font-bold">
+                                Equivalente a: {(parseFloat(d.cantidad) * itemObj.contenidoPorUnidad).toLocaleString()} {itemObj.unidadBase || itemObj.unidadMedida}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

@@ -461,7 +461,8 @@ const AplicacionForm = ({ tratamientoId, onClose, onSuccess }) => {
 
   // Filtrar medicamentos disponibles según fecha de aplicación, stock y estado
   const availableMeds = meds.filter(m => {
-    if (!m.estado || m.stockCantidad <= 0) return false;
+    const isOutOfStock = (m.contenidoPorUnidad > 0 && m.stockTotalBase !== null) ? m.stockTotalBase <= 0 : m.stockCantidad <= 0;
+    if (!m.estado || isOutOfStock) return false;
     if (m.fechaVencimiento && form.fechaAdministracion) {
       const vDate = new Date(m.fechaVencimiento);
       vDate.setHours(0,0,0,0);
@@ -533,14 +534,45 @@ const AplicacionForm = ({ tratamientoId, onClose, onSuccess }) => {
                 No hay medicamentos aptos para la fecha seleccionada.
               </p>
             ) : (
-              <select className="input" required value={form.medicamentoId} onChange={e => setForm({...form, medicamentoId: e.target.value})}>
-                <option value="">Seleccione...</option>
-                {availableMeds.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.nombre} — Stock: {m.stockCantidad} {m.unidadMedida}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select className="input" required value={form.medicamentoId} onChange={e => setForm({...form, medicamentoId: e.target.value})}>
+                  <option value="">Seleccione...</option>
+                  {availableMeds.map(m => {
+                    const usaNuevaLogica = m.contenidoPorUnidad > 0 && m.stockTotalBase !== null;
+                    if (usaNuevaLogica) {
+                      const eqFrasco = m.stockUnidades ? m.stockUnidades.toFixed(2).replace(/\.00$/, '') : 0;
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} - {m.presentacion || ''} — Stock: {m.stockTotalBase} {m.unidadBase} (Eq: {eqFrasco} {m.unidadCompra})
+                        </option>
+                      );
+                    } else {
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} — Stock: {m.stockCantidad} {m.unidadMedida}
+                        </option>
+                      );
+                    }
+                  })}
+                </select>
+                {form.medicamentoId && availableMeds.find(m => m.id === parseInt(form.medicamentoId))?.contenidoPorUnidad > 0 && (
+                  <div className="mt-2 text-xs bg-blue-50 p-2 rounded text-blue-800 border border-blue-100">
+                    {(() => {
+                      const selM = availableMeds.find(m => m.id === parseInt(form.medicamentoId));
+                      if (selM && selM.stockTotalBase !== null && selM.stockUnidades !== null) {
+                        const eqFrasco = selM.stockUnidades ? selM.stockUnidades.toFixed(2).replace(/\.00$/, '') : 0;
+                        return (
+                          <>
+                            <div className="font-semibold">Stock disponible: {selM.stockTotalBase} {selM.unidadBase}</div>
+                            <div>Equivalente físico: {eqFrasco} {selM.unidadCompra}</div>
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </>
             )}
           </div>
           
@@ -550,7 +582,17 @@ const AplicacionForm = ({ tratamientoId, onClose, onSuccess }) => {
               <input className="input" required value={form.dosis} onChange={e => setForm({...form, dosis: e.target.value})} placeholder="5ml, 2 pastillas..." />
             </div>
             <div>
-              <label className="label">Cant. a Descontar</label>
+              <label className="label">
+                Cantidad a descontar ({(() => {
+                  if (form.medicamentoId) {
+                    const sel = availableMeds.find(m => m.id === parseInt(form.medicamentoId));
+                    if (sel) {
+                      return (sel.contenidoPorUnidad > 0 && sel.stockTotalBase !== null) ? sel.unidadBase : sel.unidadMedida;
+                    }
+                  }
+                  return '...'
+                })()})
+              </label>
               <input type="number" step="0.01" className="input" required value={form.cantidad} onChange={e => setForm({...form, cantidad: e.target.value})} />
             </div>
           </div>

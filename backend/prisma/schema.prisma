@@ -126,16 +126,28 @@ model Diagnostico {
 }
 
 model Medicamento {
-  id               Int                     @id @default(autoincrement())
-  nombre           String
-  descripcion      String?
-  stockCantidad    Float
-  unidadMedida     String
-  fechaVencimiento DateTime?
-  precioCompra     Float?
-  estado           Boolean                 @default(true)
-  aplicaciones     AplicacionMedicamento[]
-  compras          DetalleCompra[]
+  id                 Int                     @id @default(autoincrement())
+  nombre             String
+  descripcion        String?
+  stockCantidad      Float
+  unidadMedida       String
+  fechaVencimiento   DateTime?
+  precioCompra       Float?
+  estado             Boolean                 @default(true)
+  
+  // Nuevos campos para presentaciones
+  codigo             String?
+  presentacion       String?
+  unidadCompra       String?
+  contenidoPorUnidad Float?
+  unidadBase         String?
+  stockUnidades      Float?
+  stockTotalBase     Float?
+  precioCompraUnidad Float?
+  lote               String?
+
+  aplicaciones       AplicacionMedicamento[]
+  compras            DetalleCompra[]
   movimientosInventario MovimientoInventario[]
 }
 
